@@ -1,6 +1,7 @@
 # Backend binaries
 backend/server
 backend/db-parser
+backend/email-processor
 
 # Go build files
 *.exe
@@ -25,7 +26,6 @@ go.sum
 .DS_Store
 Thumbs.db
 
-# Temporary files
-tmp/
-temp/
-*.tmp
+# Environment variable files
+.env
+.env.local

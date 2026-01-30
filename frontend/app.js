@@ -1,5 +1,5 @@
-// API Base URL
-const API_BASE_URL = 'http://localhost:8080';
+// API Base URL - use relative path to work with any domain
+const API_BASE_URL = '';
 
 // State management
 let allFiles = [];

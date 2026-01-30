@@ -407,6 +407,11 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Serve frontend static files
+	frontendPath := filepath.Join(filepath.Dir(os.Args[0]), "..", "frontend")
+	fs := http.FileServer(http.Dir(frontendPath))
+	http.Handle("/", fs)
+	
 	// Register routes
 	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/api", apiHandler)
@@ -416,7 +421,10 @@ func main() {
 	http.HandleFunc("/api/events", sseHandler)
 
 	// Start server
-	port := "8080"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	fmt.Printf("Server starting on port %s...\n", port)
 	fmt.Printf("API endpoints:\n")
 	fmt.Printf("  - http://localhost:%s/health\n", port)

@@ -57,19 +57,47 @@ db-parser/
 
 ### Quick Start
 
-**Terminal 1 - Backend:**
+**Option 1: Using PM2 (Recommended)**
 ```bash
+cd /path/to/db-parser
+go build -o backend/email-processor backend/main.go backend/processor.go
+pm2 start ecosystem.config.js
+```
+
+**Option 2: Manual Start**
+```bash
+# Terminal 1 - Backend (default port 8080)
 cd backend
 go run main.go
+
+# Or with custom port:
+PORT=9000 go run main.go
 ```
 
-**Terminal 2 - Frontend:**
+The frontend files are automatically served by the backend.
+
+**Accessing the Application:**
+- Open `http://localhost:8080` in your browser (or your custom port)
+
+### Port Configuration
+
+**Default:** Port `8080`
+
+**Change the port:**
 ```bash
-cd frontend
-python3 -m http.server 3000
+PORT=9000 go run main.go
+# or with compiled binary:
+PORT=9000 ./backend/email-processor
 ```
 
-Open `http://localhost:3000` in your browser.
+**Using PM2:** Edit `ecosystem.config.js` and update the `env` section:
+```javascript
+env: {
+  PORT: '9000'  // Change this to your desired port
+}
+```
+
+Open `http://localhost:9000` in your browser.
 
 ## Usage
 
