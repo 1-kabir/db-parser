@@ -1,0 +1,104 @@
+name: Build Release Binaries
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            binary_name: email-processor.exe
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            binary_name: email-processor
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+            binary_name: email-processor
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            binary_name: email-processor
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Build binary
+        working-directory: backend
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -o ${{ matrix.binary_name }} main.go processor.go
+
+      - name: Create release package
+        shell: bash
+        run: |
+          mkdir -p release/email-processor
+          cp backend/${{ matrix.binary_name }} release/email-processor/
+          cp -r frontend release/email-processor/
+          cp README.md release/email-processor/
+          cp .env.example release/email-processor/
+          
+          # Create start script for each platform
+          if [ "${{ matrix.goos }}" == "windows" ]; then
+            echo '@echo off' > release/email-processor/start.bat
+            echo 'echo Starting Email Processor...' >> release/email-processor/start.bat
+            echo 'echo Open your browser to: http://localhost:8080' >> release/email-processor/start.bat
+            echo 'echo Press Ctrl+C to stop the server' >> release/email-processor/start.bat
+            echo 'echo.' >> release/email-processor/start.bat
+            echo 'email-processor.exe' >> release/email-processor/start.bat
+            
+            cd release
+            7z a email-processor-windows-${{ matrix.goarch }}.zip email-processor/
+          else
+            echo '#!/bin/bash' > release/email-processor/start.sh
+            echo 'echo "Starting Email Processor..."' >> release/email-processor/start.sh
+            echo 'echo "Open your browser to: http://localhost:8080"' >> release/email-processor/start.sh
+            echo 'echo "Press Ctrl+C to stop the server"' >> release/email-processor/start.sh
+            echo 'echo ""' >> release/email-processor/start.sh
+            echo './email-processor' >> release/email-processor/start.sh
+            chmod +x release/email-processor/start.sh
+            chmod +x release/email-processor/email-processor
+            
+            cd release
+            tar -czf email-processor-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz email-processor/
+          fi
+
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v3
+        with:
+          name: email-processor-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: release/*.zip
+          if-no-files-found: ignore
+
+      - name: Upload Release Asset (tar.gz)
+        uses: actions/upload-artifact@v3
+        with:
+          name: email-processor-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: release/*.tar.gz
+          if-no-files-found: ignore
+
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release/*.zip
+            release/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

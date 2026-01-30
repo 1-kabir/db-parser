@@ -2,6 +2,22 @@
 
 A high-performance email processing system with a Go backend and minimal black & white frontend. Efficiently processes thousands of email files with duplicate detection and validation.
 
+---
+
+## 🚀 Quick Start for Windows Users
+
+**Super easy! No coding required:**
+
+1. **Download:** [Latest Windows Release](https://github.com/1-kabir/db-parser/releases) (email-processor-windows-amd64.zip)
+2. **Extract** the ZIP file
+3. **Double-click** `start.bat`
+4. **Open browser** to `http://localhost:8080`
+5. **Done!** 🎉
+
+📖 **Detailed guide:** See [WINDOWS-INSTALL.md](WINDOWS-INSTALL.md)
+
+---
+
 ## Features
 
 ### Core Functionality
@@ -51,20 +67,29 @@ db-parser/
 
 ### Prerequisites
 
-- Go 1.16 or higher
+- Go 1.16 or higher (for building from source)
 - A modern web browser
-- Python 3 (for serving frontend)
 
 ### Quick Start
 
-**Option 1: Using PM2 (Recommended)**
+**Option 1: Download Pre-built Binary (Easiest!)**
+1. Go to [Releases](https://github.com/1-kabir/db-parser/releases)
+2. Download the appropriate file for your platform:
+   - Windows: `email-processor-windows-amd64.zip`
+   - Linux: `email-processor-linux-amd64.tar.gz`
+   - macOS (Intel): `email-processor-darwin-amd64.tar.gz`
+   - macOS (Apple Silicon): `email-processor-darwin-arm64.tar.gz`
+3. Extract and run `start.bat` (Windows) or `start.sh` (Linux/Mac)
+4. Open `http://localhost:8080`
+
+**Option 2: Using PM2 (Linux/Mac - Production)**
 ```bash
 cd /path/to/db-parser
 go build -o backend/email-processor backend/main.go backend/processor.go
 pm2 start ecosystem.config.js
 ```
 
-**Option 2: Manual Start**
+**Option 3: Build from Source**
 ```bash
 # Terminal 1 - Backend (default port 8080)
 cd backend
