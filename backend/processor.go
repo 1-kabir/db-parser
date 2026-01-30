@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -17,8 +18,8 @@ type EmailValidator struct {
 
 // NewEmailValidator creates a new email validator
 func NewEmailValidator() *EmailValidator {
-	// Simple but effective email regex
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+	// Email regex that prevents leading/trailing dots in local part
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._%+\-]*[a-zA-Z0-9]@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$|^[a-zA-Z0-9]@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	return &EmailValidator{emailRegex: emailRegex}
 }
 
@@ -165,7 +166,7 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 			continue
 		}
 
-		// Check for duplicates
+		// Check for duplicates with write lock to avoid race condition
 		fp.emailMutex.Lock()
 		if fp.globalEmails[email] {
 			// Duplicate found
@@ -199,20 +200,28 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 		outFile.Close()
 		
 		if newFilename != filename {
-			os.Rename(outputPath, newOutputPath)
-			result.OutputPath = newOutputPath
+			if err := os.Rename(outputPath, newOutputPath); err != nil {
+				log.Printf("Error renaming output file: %v", err)
+				result.OutputPath = outputPath // Keep original name
+			} else {
+				result.OutputPath = newOutputPath
+			}
 		}
 	} else {
 		// No valid lines, remove the output file
 		outFile.Close()
-		os.Remove(outputPath)
+		if err := os.Remove(outputPath); err != nil {
+			log.Printf("Error removing empty output file: %v", err)
+		}
 		result.OutputPath = ""
 	}
 
 	// Remove invalid file if empty
 	invalidFile.Close()
 	if invalidLines == 0 {
-		os.Remove(invalidPath)
+		if err := os.Remove(invalidPath); err != nil {
+			log.Printf("Error removing empty invalid file: %v", err)
+		}
 		result.InvalidPath = ""
 	}
 

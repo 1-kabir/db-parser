@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -235,7 +234,7 @@ func listFilesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read directory
-	files, err := ioutil.ReadDir(req.Path)
+	entries, err := os.ReadDir(req.Path)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		response := Response{
@@ -248,13 +247,17 @@ func listFilesHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Filter for .txt files only
 	var fileInfos []FileInfo
-	for _, f := range files {
-		if !f.IsDir() && strings.HasSuffix(strings.ToLower(f.Name()), ".txt") {
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".txt") {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
 			fileInfos = append(fileInfos, FileInfo{
-				Name:    f.Name(),
-				Size:    f.Size(),
-				IsDir:   f.IsDir(),
-				ModTime: f.ModTime().Format(time.RFC3339),
+				Name:    entry.Name(),
+				Size:    info.Size(),
+				IsDir:   false,
+				ModTime: info.ModTime().Format(time.RFC3339),
 			})
 		}
 	}
