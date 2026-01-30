@@ -33,12 +33,6 @@ cd frontend
 npx http-server -p 3000
 ```
 
-#### Go
-```bash
-cd frontend
-go run -m http.server 3000
-```
-
 ### Option 2: Open Directly in Browser
 
 You can also open `index.html` directly in your browser, though some features may not work due to CORS restrictions.

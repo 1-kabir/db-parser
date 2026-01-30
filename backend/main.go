@@ -16,6 +16,8 @@ type Response struct {
 }
 
 // enableCORS adds CORS headers to allow frontend connections
+// Note: Using "*" for Allow-Origin is suitable for development only.
+// In production, specify exact origins or use environment-based configuration.
 func enableCORS(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -38,7 +40,9 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 			"timestamp": time.Now().Format(time.RFC3339),
 		},
 	}
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding health response: %v", err)
+	}
 }
 
 // apiHandler handles API requests
@@ -62,7 +66,9 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding api response: %v", err)
+	}
 }
 
 // dataHandler returns sample data
@@ -83,7 +89,9 @@ func dataHandler(w http.ResponseWriter, r *http.Request) {
 			{"id": 3, "name": "Item 3", "description": "Third sample item"},
 		},
 	}
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Error encoding data response: %v", err)
+	}
 }
 
 func main() {
