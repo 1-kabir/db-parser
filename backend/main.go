@@ -408,7 +408,12 @@ func sseHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// Serve frontend static files
-	frontendPath := filepath.Join(filepath.Dir(os.Args[0]), "..", "frontend")
+	// Try relative path first (when run from extracted folder)
+	frontendPath := "frontend"
+	if _, err := os.Stat(frontendPath); os.IsNotExist(err) {
+		// Fallback: try relative to binary location
+		frontendPath = filepath.Join(filepath.Dir(os.Args[0]), "..", "frontend")
+	}
 	fs := http.FileServer(http.Dir(frontendPath))
 	http.Handle("/", fs)
 	

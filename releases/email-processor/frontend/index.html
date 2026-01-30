@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Processor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Email File Processor</h1>
+        </header>
+
+        <main>
+            <!-- Directory Input Section -->
+            <section class="section">
+                <h2>1. Select Directory</h2>
+                <div class="input-group">
+                    <input type="text" id="directoryPath" placeholder="Enter directory path (e.g., /path/to/files)" />
+                    <button id="loadFilesBtn">Load Files</button>
+                </div>
+            </section>
+
+            <!-- File Selection Section -->
+            <section class="section" id="fileSelectionSection" style="display: none;">
+                <h2>2. Select Files to Process</h2>
+                <div class="file-actions">
+                    <button id="selectAllBtn">Select All</button>
+                    <button id="selectNoneBtn">Select None</button>
+                    <span id="selectedCount">0 files selected</span>
+                </div>
+                <div id="fileList" class="file-list"></div>
+            </section>
+
+            <!-- Configuration Section -->
+            <section class="section" id="configSection" style="display: none;">
+                <h2>3. Configuration</h2>
+                <div class="input-group">
+                    <label for="separator">Email Separator:</label>
+                    <input type="text" id="separator" value=":" maxlength="5" />
+                </div>
+            </section>
+
+            <!-- Submit Section -->
+            <section class="section" id="submitSection" style="display: none;">
+                <button id="submitBtn" class="submit-btn">Process Files</button>
+            </section>
+
+            <!-- Progress Section -->
+            <section class="section" id="progressSection" style="display: none;">
+                <h2>Processing Status</h2>
+                <div id="progressLog" class="progress-log"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
