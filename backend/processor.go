@@ -301,15 +301,19 @@ func formatNumberWithCommas(n int) string {
 		return str
 	}
 	
-	// Insert commas from right to left
-	var result strings.Builder
-	for i, digit := range str {
+	// Build result from right to left
+	var result []rune
+	for i := len(str) - 1; i >= 0; i-- {
+		// Add digit
+		result = append([]rune{rune(str[i])}, result...)
+		
+		// Add comma every 3 digits (but not before the first digit)
 		if i > 0 && (len(str)-i)%3 == 0 {
-			result.WriteRune(',')
+			result = append([]rune{','}, result...)
 		}
-		result.WriteRune(digit)
 	}
-	return result.String()
+	
+	return string(result)
 }
 
 // updateFilenameWithCount updates filename with line count in curly braces
