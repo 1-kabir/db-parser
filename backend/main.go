@@ -154,7 +154,7 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		Message: "Welcome to the API",
 		Status:  "success",
 		Data: map[string]interface{}{
-			"version": "1.2.0",
+			"version": "1.2.1",
 			"endpoints": []string{
 				"/health",
 				"/api",

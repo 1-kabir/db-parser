@@ -294,26 +294,45 @@ func (fp *FileProcessor) extractEmail(line string) (string, string) {
 	return email, remainder
 }
 
+// formatNumberWithCommas formats a number with comma separators (international format)
+func formatNumberWithCommas(n int) string {
+	str := fmt.Sprintf("%d", n)
+	if n < 1000 {
+		return str
+	}
+	
+	// Insert commas from right to left
+	var result strings.Builder
+	for i, digit := range str {
+		if i > 0 && (len(str)-i)%3 == 0 {
+			result.WriteRune(',')
+		}
+		result.WriteRune(digit)
+	}
+	return result.String()
+}
+
 // updateFilenameWithCount updates filename with line count in curly braces
+// Removes ALL existing curly bracket content and adds formatted count at the end
 func updateFilenameWithCount(filename string, count int) string {
 	// Remove extension
 	ext := filepath.Ext(filename)
 	nameWithoutExt := strings.TrimSuffix(filename, ext)
 
-	// Find rightmost curly braces
+	// Remove ALL curly brackets and their content
 	regex := regexp.MustCompile(`\{[^}]*\}`)
-	matches := regex.FindAllStringIndex(nameWithoutExt, -1)
-
-	if len(matches) > 0 {
-		// Replace rightmost match
-		lastMatch := matches[len(matches)-1]
-		before := nameWithoutExt[:lastMatch[0]]
-		after := nameWithoutExt[lastMatch[1]:]
-		return fmt.Sprintf("%s{%d}%s%s", before, count, after, ext)
-	}
-
-	// No curly braces found, append count
-	return fmt.Sprintf("%s {%d}%s", nameWithoutExt, count, ext)
+	cleanedName := regex.ReplaceAllString(nameWithoutExt, "")
+	
+	// Clean up multiple consecutive spaces
+	spaceRegex := regexp.MustCompile(`\s+`)
+	cleanedName = spaceRegex.ReplaceAllString(cleanedName, " ")
+	
+	// Trim any leading/trailing spaces
+	cleanedName = strings.TrimSpace(cleanedName)
+	
+	// Add the formatted count in curly braces
+	formattedCount := formatNumberWithCommas(count)
+	return fmt.Sprintf("%s {%s}%s", cleanedName, formattedCount, ext)
 }
 
 // sendProgress sends progress update
