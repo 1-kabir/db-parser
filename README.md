@@ -169,13 +169,20 @@ The processor:
 
 ### Output Files
 All processed files go to your configured output directory (default: `output/` in your source folder):
-- `filename {N}.txt` - Cleaned emails (N = line count)
+- `filename {N}.txt` - Cleaned emails (N = line count with comma formatting)
+  - All existing curly bracket content is removed from the original filename
+  - The new count is added at the end with proper formatting (e.g., {1,500})
 - `filename [INVALID].txt` - Invalid/duplicate emails with reasons (if enabled)
+
+**Filename Examples:**
+- `sample {100}.txt` with 1,500 valid → `output/sample {1,500}.txt`
+- `data {old} file {test}.txt` with 2,500 valid → `output/data file {2,500}.txt`
+- `emails.txt` with 100,000 valid → `output/emails {100,000}.txt`
 
 ### Example
 **Input:** `sample {100}.txt` with 100 lines, 80 valid, 20 invalid  
 **Output (with validation and invalid files enabled):**
-- `output/sample {80}.txt` - 80 valid emails
+- `output/sample {80}.txt` - 80 valid emails (old "{100}" removed, new count added)
 - `output/sample [INVALID].txt` - 20 invalid entries with tags:
   - `[DUPLICATE]` - Email already exists
   - `[INVALID_FORMAT]` - Invalid email format (if validation enabled)
