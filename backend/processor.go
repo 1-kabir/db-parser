@@ -37,16 +37,22 @@ type FileProcessor struct {
 	emailMutex     sync.RWMutex
 	progressFunc   func(string)
 	workerCount    int
+	validateEmail  bool
+	outputInvalid  bool
+	deleteAfterSep bool
 }
 
 // NewFileProcessor creates a new file processor
-func NewFileProcessor(separator string, workerCount int, progressFunc func(string)) *FileProcessor {
+func NewFileProcessor(separator string, workerCount int, validateEmail bool, outputInvalid bool, deleteAfterSep bool, progressFunc func(string)) *FileProcessor {
 	return &FileProcessor{
-		validator:    NewEmailValidator(),
-		separator:    separator,
-		globalEmails: make(map[string]bool),
-		progressFunc: progressFunc,
-		workerCount:  workerCount,
+		validator:      NewEmailValidator(),
+		separator:      separator,
+		globalEmails:   make(map[string]bool),
+		progressFunc:   progressFunc,
+		workerCount:    workerCount,
+		validateEmail:  validateEmail,
+		outputInvalid:  outputInvalid,
+		deleteAfterSep: deleteAfterSep,
 	}
 }
 
@@ -61,15 +67,27 @@ type ProcessingResult struct {
 }
 
 // ProcessFiles processes multiple files in parallel
-func (fp *FileProcessor) ProcessFiles(inputDir string, files []string) []ProcessingResult {
+func (fp *FileProcessor) ProcessFiles(inputDir string, files []string, outputDirName string) []ProcessingResult {
 	results := make([]ProcessingResult, len(files))
 	
 	// Create output directory
-	outputDir := filepath.Join(inputDir, "outputs")
+	var outputDir string
+	if filepath.IsAbs(outputDirName) {
+		outputDir = outputDirName
+	} else {
+		outputDir = filepath.Join(inputDir, outputDirName)
+	}
+	
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		fp.sendProgress(fmt.Sprintf("Error creating output directory: %v", err))
+		fp.sendProgress(fmt.Sprintf("Error creating output directory '%s': %v. Please check write permissions.", outputDir, err))
+		// Set error for all files
+		for i := range results {
+			results[i].Error = fmt.Errorf("failed to create output directory: %v", err)
+			results[i].OriginalPath = filepath.Join(inputDir, files[i])
+		}
 		return results
 	}
+	fp.sendProgress(fmt.Sprintf("Output directory created: %s", outputDir))
 
 	// Create work queue
 	jobs := make(chan int, len(files))
@@ -109,7 +127,7 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 	// Open input file
 	inFile, err := os.Open(inputPath)
 	if err != nil {
-		result.Error = err
+		result.Error = fmt.Errorf("failed to open file: %v. Check if the file exists and you have read permissions", err)
 		return result
 	}
 	defer inFile.Close()
@@ -119,25 +137,29 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 	
 	// Prepare output files
 	outputPath := filepath.Join(outputDir, filename)
-	invalidPath := filepath.Join(outputDir, strings.TrimSuffix(filename, ".txt")+" [INVALID].txt")
+	invalidPath := filepath.Join(outputDir, strings.TrimSuffix(filename, filepath.Ext(filename))+" [INVALID]"+filepath.Ext(filename))
 	
 	result.OutputPath = outputPath
 	result.InvalidPath = invalidPath
 
-	// Create output files
+	// Create output file
 	outFile, err := os.Create(outputPath)
 	if err != nil {
-		result.Error = err
+		result.Error = fmt.Errorf("failed to create output file: %v. Check if you have write permissions", err)
 		return result
 	}
 	defer outFile.Close()
 
-	invalidFile, err := os.Create(invalidPath)
-	if err != nil {
-		result.Error = err
-		return result
+	// Create invalid file only if outputInvalid is true
+	var invalidFile *os.File
+	if fp.outputInvalid {
+		invalidFile, err = os.Create(invalidPath)
+		if err != nil {
+			result.Error = fmt.Errorf("failed to create invalid file: %v. Check if you have write permissions", err)
+			return result
+		}
+		defer invalidFile.Close()
 	}
-	defer invalidFile.Close()
 
 	// Process line by line
 	scanner := bufio.NewScanner(inFile)
@@ -150,19 +172,32 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		email, _ := fp.extractEmail(line)
+		originalLine := line
+		
+		// If deleteAfterSep mode, remove separator and everything after
+		if fp.deleteAfterSep {
+			if idx := strings.Index(line, fp.separator); idx != -1 {
+				line = line[:idx]
+			}
+		}
+		
+		email, _ := fp.extractEmail(originalLine)
 		
 		if email == "" {
-			// No email found, skip line
+			// No email found
 			invalidLines++
-			fmt.Fprintf(invalidFile, "%s [NO_EMAIL]\n", line)
+			if fp.outputInvalid && invalidFile != nil {
+				fmt.Fprintf(invalidFile, "%s [NO_EMAIL]\n", originalLine)
+			}
 			continue
 		}
 
-		// Validate email
-		if !fp.validator.IsValid(email) {
+		// Validate email if validation is enabled
+		if fp.validateEmail && !fp.validator.IsValid(email) {
 			invalidLines++
-			fmt.Fprintf(invalidFile, "%s [INVALID_FORMAT]\n", line)
+			if fp.outputInvalid && invalidFile != nil {
+				fmt.Fprintf(invalidFile, "%s [INVALID_FORMAT]\n", originalLine)
+			}
 			continue
 		}
 
@@ -172,7 +207,9 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 			// Duplicate found
 			fp.emailMutex.Unlock()
 			invalidLines++
-			fmt.Fprintf(invalidFile, "%s [DUPLICATE]\n", line)
+			if fp.outputInvalid && invalidFile != nil {
+				fmt.Fprintf(invalidFile, "%s [DUPLICATE]\n", originalLine)
+			}
 			continue
 		}
 		fp.globalEmails[email] = true
@@ -180,11 +217,17 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 
 		// Valid email, write to output
 		validLines++
-		fmt.Fprintln(outFile, line)
+		if fp.deleteAfterSep {
+			// Write only the part before separator
+			fmt.Fprintln(outFile, line)
+		} else {
+			// Write the full line
+			fmt.Fprintln(outFile, originalLine)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		result.Error = err
+		result.Error = fmt.Errorf("error reading file: %v", err)
 		return result
 	}
 
@@ -201,7 +244,7 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 		
 		if newFilename != filename {
 			if err := os.Rename(outputPath, newOutputPath); err != nil {
-				log.Printf("Error renaming output file: %v", err)
+				log.Printf("Warning: Could not rename output file: %v", err)
 				result.OutputPath = outputPath // Keep original name
 			} else {
 				result.OutputPath = newOutputPath
@@ -211,17 +254,21 @@ func (fp *FileProcessor) processFile(inputPath string, outputDir string) Process
 		// No valid lines, remove the output file
 		outFile.Close()
 		if err := os.Remove(outputPath); err != nil {
-			log.Printf("Error removing empty output file: %v", err)
+			log.Printf("Warning: Could not remove empty output file: %v", err)
 		}
 		result.OutputPath = ""
 	}
 
-	// Remove invalid file if empty
-	invalidFile.Close()
-	if invalidLines == 0 {
-		if err := os.Remove(invalidPath); err != nil {
-			log.Printf("Error removing empty invalid file: %v", err)
+	// Remove invalid file if empty or if not outputting invalid files
+	if invalidFile != nil {
+		invalidFile.Close()
+		if invalidLines == 0 {
+			if err := os.Remove(invalidPath); err != nil {
+				log.Printf("Warning: Could not remove empty invalid file: %v", err)
+			}
+			result.InvalidPath = ""
 		}
+	} else {
 		result.InvalidPath = ""
 	}
 
@@ -247,26 +294,49 @@ func (fp *FileProcessor) extractEmail(line string) (string, string) {
 	return email, remainder
 }
 
+// formatNumberWithCommas formats a number with comma separators (international format)
+func formatNumberWithCommas(n int) string {
+	str := fmt.Sprintf("%d", n)
+	if n < 1000 {
+		return str
+	}
+	
+	// Build result from right to left
+	var result []rune
+	for i := len(str) - 1; i >= 0; i-- {
+		// Add digit
+		result = append([]rune{rune(str[i])}, result...)
+		
+		// Add comma every 3 digits (but not before the first digit)
+		if i > 0 && (len(str)-i)%3 == 0 {
+			result = append([]rune{','}, result...)
+		}
+	}
+	
+	return string(result)
+}
+
 // updateFilenameWithCount updates filename with line count in curly braces
+// Removes ALL existing curly bracket content and adds formatted count at the end
 func updateFilenameWithCount(filename string, count int) string {
 	// Remove extension
 	ext := filepath.Ext(filename)
 	nameWithoutExt := strings.TrimSuffix(filename, ext)
 
-	// Find rightmost curly braces
+	// Remove ALL curly brackets and their content
 	regex := regexp.MustCompile(`\{[^}]*\}`)
-	matches := regex.FindAllStringIndex(nameWithoutExt, -1)
-
-	if len(matches) > 0 {
-		// Replace rightmost match
-		lastMatch := matches[len(matches)-1]
-		before := nameWithoutExt[:lastMatch[0]]
-		after := nameWithoutExt[lastMatch[1]:]
-		return fmt.Sprintf("%s{%d}%s%s", before, count, after, ext)
-	}
-
-	// No curly braces found, append count
-	return fmt.Sprintf("%s {%d}%s", nameWithoutExt, count, ext)
+	cleanedName := regex.ReplaceAllString(nameWithoutExt, "")
+	
+	// Clean up multiple consecutive spaces
+	spaceRegex := regexp.MustCompile(`\s+`)
+	cleanedName = spaceRegex.ReplaceAllString(cleanedName, " ")
+	
+	// Trim any leading/trailing spaces
+	cleanedName = strings.TrimSpace(cleanedName)
+	
+	// Add the formatted count in curly braces
+	formattedCount := formatNumberWithCommas(count)
+	return fmt.Sprintf("%s {%s}%s", cleanedName, formattedCount, ext)
 }
 
 // sendProgress sends progress update

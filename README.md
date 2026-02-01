@@ -22,29 +22,41 @@ A high-performance email processing system with a Go backend and minimal black &
 
 ### Core Functionality
 - ✅ **Batch File Processing**: Handle 6,000+ files efficiently with worker pools
-- ✅ **Email Validation**: Regex-based email format validation
+- ✅ **Optional Email Validation**: Choose to enable/disable email format validation
 - ✅ **Duplicate Detection**: Global duplicate detection across all files
 - ✅ **Configurable Separator**: Change email/data separator (default: colon)
+- ✅ **Flexible Output Directory**: Choose where to save output files (default: ./output/)
+- ✅ **Optional Invalid Files**: Choose whether to output invalid email files
+- ✅ **Delete After Separator**: Option to remove separator and everything after it
 - ✅ **Real-time Progress**: SSE-based live progress updates
 - ✅ **Memory Efficient**: Line-by-line streaming processing
-- ✅ **Smart Output**: Files renamed with line counts, invalid emails logged
+- ✅ **Smart Output**: Files renamed with line counts
+- ✅ **Windows-Friendly**: Full Windows path support and easy-to-use batch files
 
 ### Backend (Go)
 - Concurrent file processing with worker pools
 - Line-by-line streaming for memory efficiency
-- Email validation with comprehensive regex
+- Optional email validation with comprehensive regex
 - Global duplicate tracking across files
 - SSE (Server-Sent Events) for real-time progress
-- Automatic output directory creation
-- Invalid email logging to `[INVALID].txt` files
+- Configurable output directory
+- Optional invalid email logging to `[INVALID]` files
+- Delete-after-separator mode for data cleaning
+- Comprehensive error handling with user-friendly messages
+- Full Windows path support
 
 ### Frontend (HTML/CSS/JS)
 - Minimal black & white monospace theme
 - Directory path input with file discovery
 - File selection with Select All/None
 - Configurable email separator
+- Optional email validation toggle
+- Configurable output directory
+- Optional invalid file output
+- Delete-after-separator mode
 - Real-time SSE progress display
 - Processing status with timestamps
+- User-friendly error messages
 
 ## Project Structure
 
@@ -127,9 +139,17 @@ Open `http://localhost:9000` in your browser.
 ## Usage
 
 1. **Select Directory**: Enter the path to your folder containing .txt files
+   - Windows: Use forward slashes like `C:/Users/YourName/Documents/emails` (recommended for compatibility)
+     - Backslashes also work: `C:\Users\YourName\Documents\emails`
+   - Linux/Mac: Use paths like `/home/user/emails` or `~/Documents/emails`
 2. **Load Files**: Click "Load Files" to discover all .txt files
 3. **Select Files**: Choose which files to process (Select All/None available)
-4. **Configure**: Set email separator (default is `:`)
+4. **Configure Options**:
+   - Set email separator (default is `:`)
+   - Set output directory name (default is `output`)
+   - Enable/disable email validation (checks basic syntax like e[.e]@e.c)
+   - Enable/disable invalid file output
+   - Enable delete-after-separator mode (removes separator and everything after it)
 5. **Process**: Click "Process Files" and watch real-time progress
 
 ## How It Works
@@ -148,18 +168,29 @@ The processor:
 5. Logs invalid/duplicate emails to `[INVALID].txt`
 
 ### Output Files
-All processed files go to an `outputs/` directory in your source folder:
-- `filename {N}.txt` - Cleaned emails (N = line count)
-- `filename [INVALID].txt` - Invalid/duplicate emails with reasons
+All processed files go to your configured output directory (default: `output/` in your source folder):
+- `filename {N}.txt` - Cleaned emails (N = line count with comma formatting)
+  - All existing curly bracket content is removed from the original filename
+  - The new count is added at the end with proper formatting (e.g., {1,500})
+- `filename [INVALID].txt` - Invalid/duplicate emails with reasons (if enabled)
+
+**Filename Examples:**
+- `sample {100}.txt` with 1,500 valid → `output/sample {1,500}.txt`
+- `data {old} file {test}.txt` with 2,500 valid → `output/data file {2,500}.txt`
+- `emails.txt` with 100,000 valid → `output/emails {100,000}.txt`
 
 ### Example
 **Input:** `sample {100}.txt` with 100 lines, 80 valid, 20 invalid  
-**Output:**
-- `outputs/sample {80}.txt` - 80 valid emails
-- `outputs/sample [INVALID].txt` - 20 invalid entries with tags:
+**Output (with validation and invalid files enabled):**
+- `output/sample {80}.txt` - 80 valid emails (old "{100}" removed, new count added)
+- `output/sample [INVALID].txt` - 20 invalid entries with tags:
   - `[DUPLICATE]` - Email already exists
-  - `[INVALID_FORMAT]` - Invalid email format
+  - `[INVALID_FORMAT]` - Invalid email format (if validation enabled)
   - `[NO_EMAIL]` - No email found in line
+
+**Output (with delete-after-separator enabled):**
+- Each line will have the separator and everything after it removed
+- Example: `user@example.com:password123` becomes `user@example.com`
 
 ## Performance
 
