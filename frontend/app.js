@@ -16,6 +16,10 @@ const selectNoneBtn = document.getElementById('selectNoneBtn');
 const selectedCount = document.getElementById('selectedCount');
 const configSection = document.getElementById('configSection');
 const separator = document.getElementById('separator');
+const outputDir = document.getElementById('outputDir');
+const validateEmail = document.getElementById('validateEmail');
+const outputInvalid = document.getElementById('outputInvalid');
+const deleteAfterSep = document.getElementById('deleteAfterSep');
 const submitSection = document.getElementById('submitSection');
 const submitBtn = document.getElementById('submitBtn');
 const progressSection = document.getElementById('progressSection');
@@ -150,10 +154,21 @@ async function processFiles() {
 
     const path = directoryPath.value.trim();
     const sep = separator.value || ':';
+    const outDir = outputDir.value.trim() || 'output';
+    const valEmail = validateEmail.checked;
+    const outInvalid = outputInvalid.checked;
+    const delAfterSep = deleteAfterSep.checked;
     const files = Array.from(selectedFiles);
 
-    // Confirm processing
-    if (!confirm(`Process ${files.length} files with separator "${sep}"?`)) {
+    // Build confirmation message
+    let confirmMsg = `Process ${files.length} files with the following settings?\n\n`;
+    confirmMsg += `Separator: "${sep}"\n`;
+    confirmMsg += `Output directory: ${outDir}\n`;
+    confirmMsg += `Email validation: ${valEmail ? 'Enabled' : 'Disabled'}\n`;
+    confirmMsg += `Output invalid files: ${outInvalid ? 'Yes' : 'No'}\n`;
+    confirmMsg += `Delete after separator: ${delAfterSep ? 'Yes' : 'No'}`;
+
+    if (!confirm(confirmMsg)) {
         return;
     }
 
@@ -182,6 +197,10 @@ async function processFiles() {
                 path,
                 files,
                 separator: sep,
+                validateEmail: valEmail,
+                outputDir: outDir,
+                outputInvalid: outInvalid,
+                deleteAfterSep: delAfterSep,
             }),
         });
 

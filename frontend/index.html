@@ -40,6 +40,29 @@
                     <label for="separator">Email Separator:</label>
                     <input type="text" id="separator" value=":" maxlength="5" />
                 </div>
+                <div class="input-group">
+                    <label for="outputDir">Output Directory Name:</label>
+                    <input type="text" id="outputDir" value="output" placeholder="output" />
+                    <span class="help-text">Relative to selected directory or absolute path</span>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="validateEmail" checked />
+                        Validate email syntax (basic check: e[.e]@e.c)
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="outputInvalid" checked />
+                        Output invalid emails to [INVALID] files
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="deleteAfterSep" />
+                        Delete separator and everything after it
+                    </label>
+                </div>
             </section>
 
             <!-- Submit Section -->

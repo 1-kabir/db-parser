@@ -27,9 +27,13 @@ type ListFilesRequest struct {
 
 // ProcessRequest for processing files
 type ProcessRequest struct {
-	Path      string   `json:"path"`
-	Files     []string `json:"files"`
-	Separator string   `json:"separator"`
+	Path               string   `json:"path"`
+	Files              []string `json:"files"`
+	Separator          string   `json:"separator"`
+	ValidateEmail      bool     `json:"validateEmail"`
+	OutputDir          string   `json:"outputDir"`
+	OutputInvalid      bool     `json:"outputInvalid"`
+	DeleteAfterSep     bool     `json:"deleteAfterSep"`
 }
 
 // FileInfo represents a file's information
@@ -294,12 +298,46 @@ func processFilesHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Validate request
 	if req.Path == "" || len(req.Files) == 0 {
-		http.Error(w, "Path and files are required", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		response := Response{
+			Message: "Path and files are required. Please select a valid directory and at least one file.",
+			Status:  "error",
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Validate that path exists and is a directory
+	info, err := os.Stat(req.Path)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		response := Response{
+			Message: fmt.Sprintf("Invalid path: %v. Please ensure the directory exists and you have permission to access it.", err),
+			Status:  "error",
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	if !info.IsDir() {
+		w.Header().Set("Content-Type", "application/json")
+		response := Response{
+			Message: "The specified path is not a directory. Please provide a valid directory path.",
+			Status:  "error",
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	if req.Separator == "" {
 		req.Separator = ":"
+	}
+
+	// Set default output directory if not specified
+	if req.OutputDir == "" {
+		req.OutputDir = "output"
 	}
 
 	// Send immediate response
@@ -319,6 +357,12 @@ func processFilesHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		broker.SendMessage(fmt.Sprintf("Starting processing of %d files...", len(req.Files)))
 		broker.SendMessage(fmt.Sprintf("Using separator: '%s'", req.Separator))
+		broker.SendMessage(fmt.Sprintf("Email validation: %v", req.ValidateEmail))
+		broker.SendMessage(fmt.Sprintf("Output directory: %s", req.OutputDir))
+		broker.SendMessage(fmt.Sprintf("Output invalid files: %v", req.OutputInvalid))
+		if req.DeleteAfterSep {
+			broker.SendMessage("Mode: Delete separator and everything after it")
+		}
 		
 		// Determine worker count (use CPU count or 8, whichever is less)
 		workerCount := runtime.NumCPU()
@@ -328,13 +372,13 @@ func processFilesHandler(w http.ResponseWriter, r *http.Request) {
 		broker.SendMessage(fmt.Sprintf("Using %d worker threads", workerCount))
 
 		// Create processor
-		processor := NewFileProcessor(req.Separator, workerCount, func(msg string) {
+		processor := NewFileProcessor(req.Separator, workerCount, req.ValidateEmail, req.OutputInvalid, req.DeleteAfterSep, func(msg string) {
 			broker.SendMessage(msg)
 		})
 
 		// Process files
 		startTime := time.Now()
-		results := processor.ProcessFiles(req.Path, req.Files)
+		results := processor.ProcessFiles(req.Path, req.Files, req.OutputDir)
 		duration := time.Since(startTime)
 
 		// Send summary
