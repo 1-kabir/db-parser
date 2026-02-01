@@ -139,7 +139,8 @@ Open `http://localhost:9000` in your browser.
 ## Usage
 
 1. **Select Directory**: Enter the path to your folder containing .txt files
-   - Windows: Use paths like `C:\Users\YourName\Documents\emails` or `C:/Users/YourName/Documents/emails`
+   - Windows: Use forward slashes like `C:/Users/YourName/Documents/emails` (recommended for compatibility)
+     - Backslashes also work: `C:\Users\YourName\Documents\emails`
    - Linux/Mac: Use paths like `/home/user/emails` or `~/Documents/emails`
 2. **Load Files**: Click "Load Files" to discover all .txt files
 3. **Select Files**: Choose which files to process (Select All/None available)

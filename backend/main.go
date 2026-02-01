@@ -357,12 +357,25 @@ func processFilesHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		broker.SendMessage(fmt.Sprintf("Starting processing of %d files...", len(req.Files)))
 		broker.SendMessage(fmt.Sprintf("Using separator: '%s'", req.Separator))
-		broker.SendMessage(fmt.Sprintf("Email validation: %v", req.ValidateEmail))
-		broker.SendMessage(fmt.Sprintf("Output directory: %s", req.OutputDir))
-		broker.SendMessage(fmt.Sprintf("Output invalid files: %v", req.OutputInvalid))
-		if req.DeleteAfterSep {
-			broker.SendMessage("Mode: Delete separator and everything after it")
+		
+		// Format boolean values in a user-friendly way
+		emailValidation := "Disabled"
+		if req.ValidateEmail {
+			emailValidation = "Enabled"
 		}
+		outputInvalidFiles := "No"
+		if req.OutputInvalid {
+			outputInvalidFiles = "Yes"
+		}
+		deleteMode := "No"
+		if req.DeleteAfterSep {
+			deleteMode = "Yes"
+		}
+		
+		broker.SendMessage(fmt.Sprintf("Email validation: %s", emailValidation))
+		broker.SendMessage(fmt.Sprintf("Output directory: %s", req.OutputDir))
+		broker.SendMessage(fmt.Sprintf("Output invalid files: %s", outputInvalidFiles))
+		broker.SendMessage(fmt.Sprintf("Delete after separator: %s", deleteMode))
 		
 		// Determine worker count (use CPU count or 8, whichever is less)
 		workerCount := runtime.NumCPU()
